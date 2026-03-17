@@ -1,0 +1,18 @@
+FROM node:20-alpine
+WORKDIR /app
+RUN npm install -g pnpm
+COPY pnpm-workspace.yaml ./
+COPY package.json ./
+COPY pnpm-lock.yaml ./
+COPY artifacts/api-server ./artifacts/api-server
+COPY lib ./lib
+RUN pnpm install --no-frozen-lockfile
+WORKDIR /app/artifacts/api-server
+CMD ["npx", "tsx", "src/index.ts"]
+```
+
+**Ctrl+S** → ferme, puis :
+```
+git add .
+git commit -m "Add Dockerfile"
+git push

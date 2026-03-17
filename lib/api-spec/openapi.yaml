@@ -1,0 +1,1309 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.1.0
+  description: AVISAUTO.fr API - Gestion d'avis Google avec IA
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Authentication
+  - name: companies
+    description: Company management
+  - name: reviews
+    description: Google reviews
+  - name: ai-responses
+    description: AI generated responses
+  - name: templates
+    description: Response templates
+  - name: stats
+    description: Statistics
+  - name: subscriptions
+    description: Subscriptions
+  - name: admin
+    description: Admin operations
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserWithCompany"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /companies/{companyId}:
+    get:
+      operationId: getCompany
+      tags: [companies]
+      summary: Get company details
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Company details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+    put:
+      operationId: updateCompany
+      tags: [companies]
+      summary: Update company settings
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCompanyRequest"
+      responses:
+        "200":
+          description: Company updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+
+  /companies/{companyId}/sync:
+    post:
+      operationId: syncReviews
+      tags: [companies]
+      summary: Sync reviews from Apify
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Sync result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncResult"
+
+  /companies/{companyId}/reviews:
+    get:
+      operationId: getReviews
+      tags: [reviews]
+      summary: List reviews for a company
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [nouveau, proposé, modifié, publié]
+        - name: sentiment
+          in: query
+          schema:
+            type: string
+            enum: [positif, neutre, négatif]
+        - name: filter
+          in: query
+          schema:
+            type: string
+            enum: [all, unreplied, replied, today, week]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Reviews list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewsListResponse"
+
+  /companies/{companyId}/reviews/generate-all:
+    post:
+      operationId: generateAllResponses
+      tags: [reviews]
+      summary: Generate AI responses for all new reviews
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateAllRequest"
+      responses:
+        "200":
+          description: Generated responses
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerateAllResult"
+
+  /companies/{companyId}/reviews/publish-all:
+    post:
+      operationId: publishAllResponses
+      tags: [reviews]
+      summary: Publish all pending responses
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Publish result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublishAllResult"
+
+  /companies/{companyId}/reviews/{reviewId}:
+    get:
+      operationId: getReview
+      tags: [reviews]
+      summary: Get a single review
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Review details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewWithResponse"
+
+  /companies/{companyId}/reviews/{reviewId}/generate:
+    post:
+      operationId: generateResponse
+      tags: [reviews]
+      summary: Generate AI response for a review
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateRequest"
+      responses:
+        "200":
+          description: Generated response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiResponse"
+
+  /companies/{companyId}/reviews/{reviewId}/reformulate:
+    post:
+      operationId: reformulateResponse
+      tags: [reviews]
+      summary: Reformulate response with instructions
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReformulateRequest"
+      responses:
+        "200":
+          description: 3 response variants
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReformulateResult"
+
+  /companies/{companyId}/reviews/{reviewId}/save-response:
+    post:
+      operationId: saveResponse
+      tags: [reviews]
+      summary: Save final response text
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveResponseRequest"
+      responses:
+        "200":
+          description: Response saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiResponse"
+
+  /companies/{companyId}/reviews/{reviewId}/publish:
+    post:
+      operationId: publishResponse
+      tags: [reviews]
+      summary: Publish response to Google
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Published
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublishResult"
+
+  /companies/{companyId}/reviews/{reviewId}/mark-replied:
+    post:
+      operationId: markReplied
+      tags: [reviews]
+      summary: Mark review as replied manually
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Marked as replied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /companies/{companyId}/ai-responses:
+    get:
+      operationId: getAiResponses
+      tags: [ai-responses]
+      summary: List AI responses
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [proposé, en_attente_publication, publié]
+      responses:
+        "200":
+          description: AI responses list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiResponsesListResponse"
+
+  /companies/{companyId}/templates:
+    get:
+      operationId: getTemplates
+      tags: [templates]
+      summary: List response templates
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Templates list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TemplatesListResponse"
+    post:
+      operationId: createTemplate
+      tags: [templates]
+      summary: Create a response template
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTemplateRequest"
+      responses:
+        "201":
+          description: Template created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Template"
+
+  /companies/{companyId}/templates/{templateId}:
+    put:
+      operationId: updateTemplate
+      tags: [templates]
+      summary: Update a template
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: templateId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTemplateRequest"
+      responses:
+        "200":
+          description: Template updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Template"
+    delete:
+      operationId: deleteTemplate
+      tags: [templates]
+      summary: Delete a template
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: templateId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Template deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /companies/{companyId}/stats:
+    get:
+      operationId: getStats
+      tags: [stats]
+      summary: Get statistics for a company
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatsResponse"
+
+  /companies/{companyId}/subscription:
+    get:
+      operationId: getSubscription
+      tags: [subscriptions]
+      summary: Get subscription details
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Subscription details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+
+  /companies/{companyId}/subscription/checkout:
+    post:
+      operationId: createCheckout
+      tags: [subscriptions]
+      summary: Create Stripe checkout session
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckoutRequest"
+      responses:
+        "200":
+          description: Checkout URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckoutResponse"
+
+  /webhooks/stripe:
+    post:
+      operationId: stripeWebhook
+      tags: [subscriptions]
+      summary: Stripe webhook handler
+      responses:
+        "200":
+          description: Webhook processed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /admin/companies:
+    get:
+      operationId: adminGetCompanies
+      tags: [admin]
+      summary: Admin - List all companies
+      responses:
+        "200":
+          description: Companies list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminCompaniesResponse"
+
+  /admin/stats:
+    get:
+      operationId: adminGetStats
+      tags: [admin]
+      summary: Admin - Global statistics
+      responses:
+        "200":
+          description: Global stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStatsResponse"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required:
+        - error
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required:
+        - success
+
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        name:
+          type: string
+        companyName:
+          type: string
+      required:
+        - email
+        - password
+        - name
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+          enum: [admin, user]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - email
+        - name
+        - role
+        - createdAt
+
+    Company:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        sector:
+          type: string
+        address:
+          type: string
+        googleLocationId:
+          type: string
+          nullable: true
+        apifyDatasetUrl:
+          type: string
+          nullable: true
+        defaultTone:
+          type: string
+          enum: [chaleureux, professionnel, direct]
+        signature:
+          type: string
+        primaryColor:
+          type: string
+        secondaryColor:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - defaultTone
+        - signature
+        - primaryColor
+        - secondaryColor
+        - createdAt
+
+    UpdateCompanyRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        sector:
+          type: string
+        address:
+          type: string
+        googleLocationId:
+          type: string
+        apifyDatasetUrl:
+          type: string
+        defaultTone:
+          type: string
+          enum: [chaleureux, professionnel, direct]
+        signature:
+          type: string
+        primaryColor:
+          type: string
+        secondaryColor:
+          type: string
+
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        company:
+          $ref: "#/components/schemas/Company"
+      required:
+        - user
+
+    UserWithCompany:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        company:
+          $ref: "#/components/schemas/Company"
+      required:
+        - user
+
+    Review:
+      type: object
+      properties:
+        id:
+          type: integer
+        companyId:
+          type: integer
+        authorName:
+          type: string
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        text:
+          type: string
+          nullable: true
+        publishDate:
+          type: string
+          nullable: true
+        ownerReply:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [nouveau, proposé, modifié, publié]
+        sentiment:
+          type: string
+          enum: [positif, neutre, négatif]
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        aiResponse:
+          $ref: "#/components/schemas/AiResponse"
+          nullable: true
+      required:
+        - id
+        - companyId
+        - authorName
+        - rating
+        - status
+        - createdAt
+
+    ReviewWithResponse:
+      allOf:
+        - $ref: "#/components/schemas/Review"
+
+    ReviewsListResponse:
+      type: object
+      properties:
+        reviews:
+          type: array
+          items:
+            $ref: "#/components/schemas/Review"
+        total:
+          type: integer
+        page:
+          type: integer
+        totalPages:
+          type: integer
+      required:
+        - reviews
+        - total
+        - page
+        - totalPages
+
+    AiResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        reviewId:
+          type: integer
+        companyId:
+          type: integer
+        generatedText:
+          type: string
+        finalText:
+          type: string
+          nullable: true
+        tone:
+          type: string
+          enum: [chaleureux, professionnel, direct]
+        length:
+          type: string
+          enum: [court, moyen, long]
+        style:
+          type: string
+          enum: [remerciement, excuse, résolution, neutre]
+        status:
+          type: string
+          enum: [proposé, en_attente_publication, publié]
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - reviewId
+        - companyId
+        - generatedText
+        - tone
+        - length
+        - style
+        - status
+        - createdAt
+
+    AiResponsesListResponse:
+      type: object
+      properties:
+        responses:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiResponse"
+        total:
+          type: integer
+      required:
+        - responses
+        - total
+
+    GenerateRequest:
+      type: object
+      properties:
+        tone:
+          type: string
+          enum: [chaleureux, professionnel, direct]
+        length:
+          type: string
+          enum: [court, moyen, long]
+        style:
+          type: string
+          enum: [remerciement, excuse, résolution, neutre]
+      required:
+        - tone
+        - length
+        - style
+
+    GenerateAllRequest:
+      type: object
+      properties:
+        tone:
+          type: string
+          enum: [chaleureux, professionnel, direct]
+        length:
+          type: string
+          enum: [court, moyen, long]
+        style:
+          type: string
+          enum: [remerciement, excuse, résolution, neutre]
+
+    GenerateAllResult:
+      type: object
+      properties:
+        generated:
+          type: integer
+        total:
+          type: integer
+        message:
+          type: string
+      required:
+        - generated
+        - total
+        - message
+
+    ReformulateRequest:
+      type: object
+      properties:
+        instructions:
+          type: string
+        currentText:
+          type: string
+        tone:
+          type: string
+          enum: [chaleureux, professionnel, direct]
+        length:
+          type: string
+          enum: [court, moyen, long]
+      required:
+        - instructions
+        - currentText
+
+    ReformulateResult:
+      type: object
+      properties:
+        variants:
+          type: array
+          items:
+            type: string
+          minItems: 3
+          maxItems: 3
+      required:
+        - variants
+
+    SaveResponseRequest:
+      type: object
+      properties:
+        finalText:
+          type: string
+        status:
+          type: string
+          enum: [proposé, en_attente_publication, publié]
+      required:
+        - finalText
+
+    PublishResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - success
+        - message
+
+    PublishAllResult:
+      type: object
+      properties:
+        published:
+          type: integer
+        total:
+          type: integer
+        message:
+          type: string
+        timeSaved:
+          type: string
+      required:
+        - published
+        - total
+        - message
+        - timeSaved
+
+    SyncResult:
+      type: object
+      properties:
+        synced:
+          type: integer
+        total:
+          type: integer
+        newReviews:
+          type: integer
+        message:
+          type: string
+      required:
+        - synced
+        - total
+        - newReviews
+        - message
+
+    Template:
+      type: object
+      properties:
+        id:
+          type: integer
+        companyId:
+          type: integer
+        name:
+          type: string
+        content:
+          type: string
+        type:
+          type: string
+          enum: [remerciement, critique, standard]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - companyId
+        - name
+        - content
+        - type
+        - createdAt
+
+    TemplatesListResponse:
+      type: object
+      properties:
+        templates:
+          type: array
+          items:
+            $ref: "#/components/schemas/Template"
+      required:
+        - templates
+
+    CreateTemplateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        content:
+          type: string
+        type:
+          type: string
+          enum: [remerciement, critique, standard]
+      required:
+        - name
+        - content
+        - type
+
+    StatsResponse:
+      type: object
+      properties:
+        totalReviews:
+          type: integer
+        unrepliedReviews:
+          type: integer
+        repliedReviews:
+          type: integer
+        responseRate:
+          type: number
+        averageRating:
+          type: number
+        sentimentBreakdown:
+          type: object
+          properties:
+            positif:
+              type: integer
+            neutre:
+              type: integer
+            negatif:
+              type: integer
+          required:
+            - positif
+            - neutre
+            - negatif
+        reviewsByDay:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+              count:
+                type: integer
+            required:
+              - date
+              - count
+        responseRateByDay:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+              rate:
+                type: number
+            required:
+              - date
+              - rate
+        timeSaved:
+          type: string
+        ratingDistribution:
+          type: array
+          items:
+            type: object
+            properties:
+              rating:
+                type: integer
+              count:
+                type: integer
+            required:
+              - rating
+              - count
+      required:
+        - totalReviews
+        - unrepliedReviews
+        - repliedReviews
+        - responseRate
+        - averageRating
+        - sentimentBreakdown
+        - reviewsByDay
+        - responseRateByDay
+        - timeSaved
+        - ratingDistribution
+
+    Subscription:
+      type: object
+      properties:
+        id:
+          type: integer
+        companyId:
+          type: integer
+        stripeCustomerId:
+          type: string
+          nullable: true
+        stripeSubscriptionId:
+          type: string
+          nullable: true
+        plan:
+          type: string
+          enum: [starter, pro, agency]
+          nullable: true
+        status:
+          type: string
+          enum: [active, past_due, canceled, none]
+        currentPeriodEnd:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - companyId
+        - status
+
+    CheckoutRequest:
+      type: object
+      properties:
+        plan:
+          type: string
+          enum: [starter, pro, agency]
+        billingPeriod:
+          type: string
+          enum: [monthly, annual]
+      required:
+        - plan
+        - billingPeriod
+
+    CheckoutResponse:
+      type: object
+      properties:
+        url:
+          type: string
+      required:
+        - url
+
+    AdminCompaniesResponse:
+      type: object
+      properties:
+        companies:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+              sector:
+                type: string
+                nullable: true
+              totalReviews:
+                type: integer
+              unrepliedReviews:
+                type: integer
+              responseRate:
+                type: number
+              averageRating:
+                type: number
+              subscriptionStatus:
+                type: string
+              createdAt:
+                type: string
+                format: date-time
+            required:
+              - id
+              - name
+              - totalReviews
+              - unrepliedReviews
+              - responseRate
+              - averageRating
+              - subscriptionStatus
+              - createdAt
+        total:
+          type: integer
+      required:
+        - companies
+        - total
+
+    AdminStatsResponse:
+      type: object
+      properties:
+        totalCompanies:
+          type: integer
+        totalReviews:
+          type: integer
+        totalResponses:
+          type: integer
+        totalPublished:
+          type: integer
+        activeSubscriptions:
+          type: integer
+      required:
+        - totalCompanies
+        - totalReviews
+        - totalResponses
+        - totalPublished
+        - activeSubscriptions

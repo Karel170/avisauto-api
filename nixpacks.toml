@@ -1,0 +1,16 @@
+[phases.setup]
+nixPkgs = ["nodejs"]
+
+[phases.install]
+cmds = ["npm install -g pnpm", "pnpm install --no-frozen-lockfile"]
+
+[start]
+cmd = "npx tsx src/index.ts"
+```
+
+**Ctrl+S** → ferme, puis :
+```
+cd ..\..
+git add .
+git commit -m "Add nixpacks config"
+git push
