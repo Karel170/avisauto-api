@@ -5,7 +5,7 @@ import session from "express-session";
 import router from "./routes/index.js";
 
 const app: Express = express();
-
+app.set("trust proxy", 1);
 app.use(cors({ 
   origin: ["https://avis-auto-avisauto.vercel.app", "http://localhost:5173"], 
   credentials: true,
