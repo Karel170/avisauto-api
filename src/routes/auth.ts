@@ -132,4 +132,38 @@ router.get("/auth/me", requireAuth, async (req, res) => {
   }
 });
 
+router.post("/auth/change-password", requireAuth, async (req, res) => {
+  try {
+    const session = (req as any).session;
+    const { currentPassword, newPassword } = req.body;
+
+    const users = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.id, session.userId))
+      .limit(1);
+
+    if (!users.length) {
+      res.status(404).json({ error: "Utilisateur non trouvé" });
+      return;
+    }
+
+    const valid = await verifyPassword(currentPassword, users[0].passwordHash);
+    if (!valid) {
+      res.status(401).json({ error: "Mot de passe actuel incorrect" });
+      return;
+    }
+
+    const newHash = await hashPassword(newPassword);
+    await db
+      .update(usersTable)
+      .set({ passwordHash: newHash, updatedAt: new Date() })
+      .where(eq(usersTable.id, session.userId));
+
+    res.json({ success: true, message: "Mot de passe modifié avec succès" });
+  } catch (err) {
+    console.error("ChangePassword error:", err);
+    res.status(500).json({ error: "Erreur lors du changement de mot de passe" });
+  }
+});
 export default router;
